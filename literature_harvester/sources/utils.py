@@ -7,8 +7,11 @@ LANGUAGE_LABELS = {
     "es": "Español / 西班牙语",
     "de": "Deutsch / 德语",
     "fr": "Français / 法语",
-    "ja": "日本語",
-    "ru": "Русский",
+    "ru": "Русский / 俄语",
+    "ja": "日本語 / 日语",
+    "ar": "العربية / 阿拉伯语",
+    "fa": "فارسی / 波斯语",
+    "tr": "Türkçe / 土耳其语",
 }
 
 LANGUAGE_ALIASES = {
@@ -40,6 +43,17 @@ LANGUAGE_ALIASES = {
     "ru": "ru",
     "rus": "ru",
     "russian": "ru",
+    "ar": "ar",
+    "ara": "ar",
+    "arabic": "ar",
+    "fa": "fa",
+    "fas": "fa",
+    "per": "fa",
+    "persian": "fa",
+    "farsi": "fa",
+    "tr": "tr",
+    "tur": "tr",
+    "turkish": "tr",
 }
 
 

@@ -18,8 +18,9 @@
     }
     .container {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
       gap: 1.5rem;
+      align-items: start;
     }
     form, .results, .selection {
       background: #fff;
@@ -27,10 +28,15 @@
       padding: 1.25rem;
       box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
     }
-    form .field {
-      margin-bottom: 1rem;
+    form {
       display: flex;
       flex-direction: column;
+      gap: 1rem;
+    }
+    form .field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
     }
     .field-header {
       display: flex;
@@ -76,15 +82,23 @@
     button + button {
       margin-left: 0.5rem;
     }
+    .chip-field {
+      background: linear-gradient(145deg, #f8fafc, #eef2ff);
+      border-radius: 12px;
+      padding: 0.85rem;
+      border: 1px solid rgba(99, 102, 241, 0.18);
+      box-shadow: inset 0 1px 2px rgba(79, 70, 229, 0.08);
+    }
     .chip-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
+      display: grid;
+      gap: 0.6rem;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     }
     .chip {
       display: inline-flex;
       align-items: center;
       cursor: pointer;
+      position: relative;
     }
     .chip input {
       position: absolute;
@@ -94,6 +108,7 @@
     .chip span {
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       padding: 0.4rem 0.95rem;
       border-radius: 999px;
       background: #f1f5f9;
@@ -101,6 +116,7 @@
       color: #1e293b;
       font-size: 0.9rem;
       transition: all 0.2s ease;
+      width: 100%;
     }
     .chip:hover span {
       border-color: #94a3b8;
@@ -124,6 +140,15 @@
       padding: 0.35rem 0.6rem;
       font-size: 0.8rem;
       margin: 0;
+    }
+    .chip-summary {
+      font-size: 0.8rem;
+      color: #475569;
+      margin: 0;
+    }
+    .chip-summary.empty {
+      color: #c026d3;
+      font-weight: 600;
     }
     .results-list, .selection-list {
       list-style: none;
@@ -188,7 +213,7 @@
           <input type="date" id="end-date" />
         </div>
       </div>
-      <div class="field">
+      <div class="field chip-field">
         <div class="field-header">
           <label>语言（可多选）</label>
           <div class="chip-actions">
@@ -196,30 +221,31 @@
             <button type="button" class="ghost" data-chip-action="clear" data-target="language-group">清空</button>
           </div>
         </div>
-        <div class="chip-group" id="language-group">
+        <p class="chip-summary empty" data-summary-for="language-group">未选择</p>
+        <div class="chip-group" id="language-group" role="group" aria-label="语言筛选">
           <label class="chip">
-            <input type="checkbox" value="Chinese" />
+            <input type="checkbox" value="zh" />
             <span>中文</span>
           </label>
           <label class="chip">
-            <input type="checkbox" value="English" />
+            <input type="checkbox" value="en" />
             <span>English / 英语</span>
           </label>
           <label class="chip">
-            <input type="checkbox" value="Spanish" />
+            <input type="checkbox" value="es" />
             <span>Español / 西班牙语</span>
           </label>
           <label class="chip">
-            <input type="checkbox" value="German" />
+            <input type="checkbox" value="de" />
             <span>Deutsch / 德语</span>
           </label>
           <label class="chip">
-            <input type="checkbox" value="French" />
+            <input type="checkbox" value="fr" />
             <span>Français / 法语</span>
           </label>
         </div>
       </div>
-      <div class="field">
+      <div class="field chip-field">
         <div class="field-header">
           <label>文献类型 / 格式（可多选）</label>
           <div class="chip-actions">
@@ -227,7 +253,8 @@
             <button type="button" class="ghost" data-chip-action="clear" data-target="format-group">清空</button>
           </div>
         </div>
-        <div class="chip-group" id="format-group">
+        <p class="chip-summary empty" data-summary-for="format-group">未选择</p>
+        <div class="chip-group" id="format-group" role="group" aria-label="格式类型筛选">
           <label class="chip">
             <input type="checkbox" value="journal-article" />
             <span>期刊文章</span>
@@ -317,6 +344,7 @@
     const bibliographyPre = document.getElementById('bibliography');
     const exportPath = document.getElementById('export-path');
     const selectedRecords = new Map();
+    const CHIP_GROUP_IDS = ['language-group', 'format-group'];
 
     async function loadSources() {
       const response = await fetch('/api/sources');
@@ -345,6 +373,7 @@
       document.querySelectorAll(`#${groupId} input[type="checkbox"]`).forEach((input) => {
         input.checked = checked;
       });
+      updateChipSummary(groupId);
     }
 
     document.querySelectorAll('[data-chip-action]').forEach((button) => {
@@ -359,6 +388,31 @@
           setChipGroupState(target, false);
         }
       });
+    });
+
+    function updateChipSummary(groupId) {
+      const summary = document.querySelector(`[data-summary-for="${groupId}"]`);
+      if (!summary) return;
+      const chips = document.querySelectorAll(`#${groupId} input[type="checkbox"]`);
+      const checked = Array.from(chips).filter(input => input.checked);
+      if (checked.length === 0) {
+        summary.textContent = '未选择';
+        summary.classList.add('empty');
+        return;
+      }
+      summary.classList.remove('empty');
+      if (checked.length === chips.length) {
+        summary.textContent = '已选择：全部';
+        return;
+      }
+      summary.textContent = `已选择：${checked.length} 项`;
+    }
+
+    CHIP_GROUP_IDS.forEach((groupId) => {
+      document.querySelectorAll(`#${groupId} input[type="checkbox"]`).forEach((input) => {
+        input.addEventListener('change', () => updateChipSummary(groupId));
+      });
+      updateChipSummary(groupId);
     });
 
     function collectTextAreaValues(textArea) {
@@ -399,7 +453,8 @@
         const meta = document.createElement('div');
         meta.className = 'meta';
         const authorList = (record.authors || []).join('; ');
-        const info = [authorList, record.year, record.publisher || record.source, record.type].filter(Boolean).join(' | ');
+        const languageLabel = record.language_display || record.language;
+        const info = [authorList, record.year, record.publisher || record.source, record.type, languageLabel].filter(Boolean).join(' | ');
         meta.textContent = info;
 
         const abstract = document.createElement('p');
@@ -509,6 +564,7 @@
       bibliographyPre.textContent = '';
       exportPath.textContent = '';
       selectedRecords.clear();
+      CHIP_GROUP_IDS.forEach(updateChipSummary);
     });
 
     document.getElementById('search-form').addEventListener('submit', async (event) => {

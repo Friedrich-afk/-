@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import re
-from typing import Dict, Iterable, List, Sequence
+from typing import Dict, Iterable, List, Sequence, Set
 
 import requests
 
 from .base import Source, registry
+from .utils import language_display, normalize_language_code
 
 
 def _tokenize_keywords(raw: str | None) -> List[str]:
@@ -106,6 +107,14 @@ class CrossrefSource(Source):
             params["query.author"] = " ".join(query["authors"])
         if filters:
             params["filter"] = ",".join(filters)
+        requested_languages: Set[str] = {
+            lang
+            for lang in (
+                normalize_language_code(language)
+                for language in query.get("languages", [])
+            )
+            if lang
+        }
         response = requests.get(self.API_URL, params=params, timeout=30)
         response.raise_for_status()
         items = response.json().get("message", {}).get("items", [])
@@ -122,8 +131,9 @@ class CrossrefSource(Source):
                 date_parts = published.get("date-parts")
                 if date_parts:
                     year = str(date_parts[0][0])
-            language = item.get("language") or ""
-            if query.get("languages") and language not in query["languages"]:
+            language_raw = item.get("language") or ""
+            language_code = normalize_language_code(language_raw)
+            if requested_languages and language_code not in requested_languages:
                 continue
             doc_type = item.get("type") or ""
             if query.get("formats") and doc_type not in query["formats"]:
@@ -140,7 +150,8 @@ class CrossrefSource(Source):
                 "doi": item.get("DOI"),
                 "publisher": item.get("publisher"),
                 "year": year,
-                "language": language,
+                "language": language_code or language_raw,
+                "language_display": language_display(language_code, language_raw),
                 "type": doc_type,
                 "url": url,
                 "abstract": item.get("abstract"),

@@ -6,6 +6,7 @@ from typing import Dict, Iterable
 from urllib.parse import urlencode
 
 from .base import Source, registry
+from .utils import LANGUAGE_LABELS, language_display, normalize_language_code
 
 
 class ArxivSource(Source):
@@ -35,10 +36,18 @@ class ArxivSource(Source):
             "sortBy": "submittedDate",
         }
         response = feedparser.parse(f"{self.API_URL}?{urlencode(params)}")
+        requested_languages = {
+            lang
+            for lang in (
+                normalize_language_code(language)
+                for language in query.get("languages", [])
+            )
+            if lang
+        }
         for entry in response.entries:
             year = entry.published_parsed.tm_year if entry.get("published_parsed") else None
-            language = "English"
-            if query.get("languages") and language not in query["languages"]:
+            language_code = "en"
+            if requested_languages and language_code not in requested_languages:
                 continue
             doc_type = "preprint"
             if query.get("formats") and doc_type not in query["formats"]:
@@ -50,7 +59,8 @@ class ArxivSource(Source):
                 "doi": entry.get("arxiv_doi"),
                 "publisher": "arXiv",
                 "year": str(year) if year else None,
-                "language": language,
+                "language": language_code,
+                "language_display": language_display(language_code, LANGUAGE_LABELS.get(language_code)),
                 "type": doc_type,
                 "url": entry.get("id"),
                 "abstract": entry.get("summary"),

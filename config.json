@@ -1,0 +1,12 @@
+{
+    "out_dir": "E:\\MarkItDown\\app\\output",
+    "md_use_plugins": false,
+    "md_merge": false,
+    "md_regex": "pattern:::replacement\n",
+    "split_level": 1,
+    "split_watermark": "",
+    "debug_mode": false,
+    "auto_scroll": true,
+    "bg_images": {},
+    "theme": "light"
+}

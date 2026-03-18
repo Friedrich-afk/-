@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>文献检索助手</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/modern-css-reset/dist/reset.min.css" />
+  <style>
+    body {
+      font-family: "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+      margin: 0;
+      padding: 1.5rem;
+      background: #f4f6f8;
+      color: #222;
+    }
+    h1 {
+      margin-bottom: 1rem;
+    }
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+    form, .results, .selection {
+      background: #fff;
+      border-radius: 12px;
+      padding: 1.25rem;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+    }
+    form .field {
+      margin-bottom: 1rem;
+      display: flex;
+      flex-direction: column;
+    }
+    label {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    input[type="text"], input[type="date"], select, textarea {
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 0.5rem;
+      font-size: 0.95rem;
+    }
+    textarea {
+      min-height: 60px;
+    }
+    button {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.6rem 1rem;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: #64748b;
+    }
+    button + button {
+      margin-left: 0.5rem;
+    }
+    .results-list, .selection-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+    .results-item {
+      border-bottom: 1px solid #e2e8f0;
+      padding: 0.75rem 0;
+    }
+    .results-item:last-child {
+      border-bottom: none;
+    }
+    .results-item h3 {
+      margin: 0 0 0.4rem;
+      font-size: 1rem;
+    }
+    .meta {
+      font-size: 0.85rem;
+      color: #475569;
+      margin-bottom: 0.25rem;
+    }
+    .actions {
+      margin-top: 0.75rem;
+    }
+    .source-manager {
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e2e8f0;
+    }
+    @media (max-width: 900px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>文献检索助手</h1>
+  <div class="container">
+    <form id="search-form">
+      <div class="field">
+        <label for="keywords">关键词（可多关键词，以空格分隔）</label>
+        <input type="text" id="keywords" name="keywords" placeholder="例如：machine learning ethics" />
+      </div>
+      <div class="field">
+        <label for="authors">作者（多名作者用逗号分隔）</label>
+        <input type="text" id="authors" name="authors" placeholder="例如：Ada Lovelace, Alan Turing" />
+      </div>
+      <div class="field">
+        <label>时间范围</label>
+        <div style="display: flex; gap: 0.5rem;">
+          <input type="date" id="start-date" />
+          <input type="date" id="end-date" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="languages">语言（多选）</label>
+        <select id="languages" multiple>
+          <option value="English">English</option>
+          <option value="Chinese">Chinese</option>
+          <option value="Spanish">Spanish</option>
+          <option value="German">German</option>
+          <option value="French">French</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="formats">文献类型/格式（多选）</label>
+        <select id="formats" multiple>
+          <option value="journal-article">期刊文章</option>
+          <option value="book">图书</option>
+          <option value="proceedings-article">会议论文</option>
+          <option value="preprint">预印本</option>
+          <option value="dataset">数据集</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="scopes">范围（多选，可输入来源或类型）</label>
+        <textarea id="scopes" placeholder="按行输入需要的来源/范围"></textarea>
+      </div>
+      <div class="field">
+        <label for="source-select">抓取范围（数据源多选）</label>
+        <select id="source-select" multiple></select>
+      </div>
+      <div class="field">
+        <label>
+          <input type="checkbox" id="use-all-sources" checked /> 使用所有数据源
+        </label>
+      </div>
+      <div class="actions">
+        <button type="submit">执行检索</button>
+        <button type="button" class="secondary" id="reset-btn">重置</button>
+      </div>
+      <div class="source-manager">
+        <h2 style="font-size:1.1rem;">数据源管理</h2>
+        <p style="font-size:0.9rem;color:#475569;">可新增可保存的数据源（当前支持 crossref / arxiv 类型）。</p>
+        <div class="field">
+          <label for="new-source-name">名称</label>
+          <input type="text" id="new-source-name" placeholder="例如：Crossref" />
+        </div>
+        <div class="field">
+          <label for="new-source-key">类型</label>
+          <select id="new-source-key">
+            <option value="crossref">Crossref</option>
+            <option value="arxiv">arXiv</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="new-source-config">自定义配置(JSON)</label>
+          <textarea id="new-source-config" placeholder='例如：{"rows": 100}'></textarea>
+        </div>
+        <button type="button" id="add-source-btn" class="secondary">新增数据源</button>
+      </div>
+    </form>
+
+    <div>
+      <div class="results">
+        <h2>检索结果</h2>
+        <div class="actions" style="margin-bottom:0.75rem;">
+          <button type="button" id="select-all-btn" class="secondary">全选结果</button>
+        </div>
+        <ul class="results-list" id="results-list"></ul>
+      </div>
+      <div class="selection" style="margin-top:1.5rem;">
+        <h2>芝加哥格式引用</h2>
+        <div class="actions" style="margin-bottom:0.75rem;">
+          <button type="button" id="copy-btn">复制到剪贴板</button>
+          <button type="button" id="export-btn" class="secondary">导出为TXT</button>
+        </div>
+        <pre id="bibliography" style="white-space:pre-wrap;background:#f8fafc;padding:0.75rem;border-radius:8px;min-height:120px;"></pre>
+        <p id="export-path" style="font-size:0.85rem;color:#475569;"></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.currentResults = [];
+    const sourceSelect = document.getElementById('source-select');
+    const useAllSourcesCheckbox = document.getElementById('use-all-sources');
+    const resultsList = document.getElementById('results-list');
+    const bibliographyPre = document.getElementById('bibliography');
+    const exportPath = document.getElementById('export-path');
+    const selectedRecords = new Map();
+
+    async function loadSources() {
+      const response = await fetch('/api/sources');
+      const sources = await response.json();
+      sourceSelect.innerHTML = '';
+      sources.forEach((source, index) => {
+        const option = document.createElement('option');
+        option.value = source.key;
+        option.textContent = `${source.name} (${source.key})`;
+        if (index === 0) {
+          option.selected = true;
+        }
+        sourceSelect.appendChild(option);
+      });
+    }
+
+    function collectMultiSelectValues(selectEl) {
+      return Array.from(selectEl.selectedOptions).map(option => option.value);
+    }
+
+    function collectTextAreaValues(textArea) {
+      return textArea.value.split('\n').map(v => v.trim()).filter(Boolean);
+    }
+
+    function renderResults(records) {
+      resultsList.innerHTML = '';
+      window.currentResults = records;
+      if (!records.length) {
+        const empty = document.createElement('li');
+        empty.className = 'results-item';
+        empty.textContent = '未找到符合条件的结果。';
+        resultsList.appendChild(empty);
+        window.currentResults = [];
+        return;
+      }
+      records.forEach((record, index) => {
+        const li = document.createElement('li');
+        li.className = 'results-item';
+        li.dataset.index = index;
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.dataset.index = index;
+        checkbox.addEventListener('change', (event) => {
+          if (event.target.checked) {
+            selectedRecords.set(index, record);
+          } else {
+            selectedRecords.delete(index);
+          }
+          updateBibliography();
+        });
+
+        const title = document.createElement('h3');
+        title.textContent = record.title || '未命名';
+
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        const authorList = (record.authors || []).join('; ');
+        const info = [authorList, record.year, record.publisher || record.source, record.type].filter(Boolean).join(' | ');
+        meta.textContent = info;
+
+        const abstract = document.createElement('p');
+        abstract.textContent = (record.abstract || '').slice(0, 220) + (record.abstract && record.abstract.length > 220 ? '…' : '');
+
+        const link = document.createElement('a');
+        link.href = record.url || '#';
+        link.textContent = '访问来源';
+        link.target = '_blank';
+        link.rel = 'noopener';
+
+        li.appendChild(checkbox);
+        li.appendChild(title);
+        li.appendChild(meta);
+        if (record.doi) {
+          const doiMeta = document.createElement('div');
+          doiMeta.className = 'meta';
+          doiMeta.textContent = `DOI: ${record.doi}`;
+          li.appendChild(doiMeta);
+        }
+        li.appendChild(abstract);
+        li.appendChild(link);
+        resultsList.appendChild(li);
+      });
+    }
+
+    function updateBibliography() {
+      if (selectedRecords.size === 0) {
+        bibliographyPre.textContent = '';
+        return;
+      }
+      const payload = { records: Array.from(selectedRecords.values()) };
+      bibliographyPre.textContent = payload.records.map(formatChicago).join('\n');
+    }
+
+    function formatChicago(record) {
+      const authors = (record.authors && record.authors.length) ? record.authors.join('; ') : 'Unknown';
+      const year = record.year || 'n.d.';
+      const title = record.title || 'Untitled';
+      const publisher = record.publisher || record.source || '';
+      const doi = record.doi ? ` https://doi.org/${record.doi}` : '';
+      const url = !record.doi && record.url ? ` ${record.url}` : '';
+      const publisherPart = publisher ? ` ${publisher}.` : '';
+      return `${authors}. ${year}. "${title}."${publisherPart}${doi || url}`.trim();
+    }
+
+    document.getElementById('select-all-btn').addEventListener('click', () => {
+      const checkboxes = resultsList.querySelectorAll('input[type="checkbox"]');
+      selectedRecords.clear();
+      checkboxes.forEach((checkbox) => {
+        checkbox.checked = true;
+        const index = Number(checkbox.dataset.index);
+        selectedRecords.set(index, window.currentResults[index]);
+      });
+      updateBibliography();
+    });
+
+    document.getElementById('copy-btn').addEventListener('click', async () => {
+      if (!bibliographyPre.textContent.trim()) return;
+      await navigator.clipboard.writeText(bibliographyPre.textContent);
+      alert('已复制到剪贴板');
+    });
+
+    document.getElementById('export-btn').addEventListener('click', async () => {
+      if (selectedRecords.size === 0) return;
+      const records = Array.from(selectedRecords.values());
+      const response = await fetch('/api/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ records })
+      });
+      const data = await response.json();
+      exportPath.textContent = `已导出：${data.path}`;
+      bibliographyPre.textContent = data.content;
+    });
+
+    document.getElementById('add-source-btn').addEventListener('click', async () => {
+      const name = document.getElementById('new-source-name').value.trim();
+      const key = document.getElementById('new-source-key').value;
+      const configRaw = document.getElementById('new-source-config').value.trim();
+      let extra = {};
+      if (configRaw) {
+        try {
+          extra = JSON.parse(configRaw);
+        } catch (error) {
+          alert('配置必须是合法的 JSON');
+          return;
+        }
+      }
+      if (!name) {
+        alert('请输入名称');
+        return;
+      }
+      const sources = await (await fetch('/api/sources')).json();
+      sources.push({ name, key, ...extra });
+      await fetch('/api/sources', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sources)
+      });
+      await loadSources();
+      alert('数据源已更新');
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', () => {
+      document.getElementById('search-form').reset();
+      bibliographyPre.textContent = '';
+      exportPath.textContent = '';
+      selectedRecords.clear();
+    });
+
+    document.getElementById('search-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      selectedRecords.clear();
+      bibliographyPre.textContent = '';
+      exportPath.textContent = '';
+
+      const payload = {
+        keywords: document.getElementById('keywords').value.trim(),
+        authors: document.getElementById('authors').value.split(',').map(v => v.trim()).filter(Boolean),
+        start_date: document.getElementById('start-date').value || null,
+        end_date: document.getElementById('end-date').value || null,
+        languages: collectMultiSelectValues(document.getElementById('languages')),
+        formats: collectMultiSelectValues(document.getElementById('formats')),
+        scopes: collectTextAreaValues(document.getElementById('scopes')),
+      };
+      if (!useAllSourcesCheckbox.checked) {
+        payload.source_keys = collectMultiSelectValues(sourceSelect);
+      }
+
+      const response = await fetch('/api/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const records = await response.json();
+      renderResults(records);
+    });
+
+    useAllSourcesCheckbox.addEventListener('change', () => {
+      sourceSelect.disabled = useAllSourcesCheckbox.checked;
+    });
+
+    loadSources().then(() => {
+      useAllSourcesCheckbox.dispatchEvent(new Event('change'));
+    });
+  </script>
+</body>
+</html>
